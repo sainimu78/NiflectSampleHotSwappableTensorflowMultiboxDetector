@@ -37,24 +37,25 @@ target_include_directories(${ModuleName}
 	PUBLIC ${IncludePathsPublic}
 )
 
-get_filename_component(TensorFlowRootDirPath "${c_RootDirPath}/../../out" ABSOLUTE)
-target_include_directories(${ModuleName} PRIVATE 
-    ${TensorFlowRootDirPath}/include
-    ${TensorFlowRootDirPath}/include/third_party/xla
-    ${TensorFlowRootDirPath}/include/third_party/xla/third_party/tsl
-    ${TensorFlowRootDirPath}/include/bazel-tensorflow/external/ml_dtypes_py
-    ${TensorFlowRootDirPath}/include/external/local_xla
-)
-target_link_libraries(${ModuleName} PRIVATE
-    ${TensorFlowRootDirPath}/lib/libtensorflow_cc.so
-	${TensorFlowRootDirPath}/lib/libtensorflow_framework.so
-)
+#get_filename_component(TensorFlowRootDirPath "${c_RootDirPath}/../../out" ABSOLUTE)
+#target_include_directories(${ModuleName} PRIVATE 
+#    ${TensorFlowRootDirPath}/include
+#    ${TensorFlowRootDirPath}/include/third_party/xla
+#    ${TensorFlowRootDirPath}/include/third_party/xla/third_party/tsl
+#    ${TensorFlowRootDirPath}/include/bazel-tensorflow/external/ml_dtypes_py
+#    ${TensorFlowRootDirPath}/include/external/local_xla
+#)
+#target_link_libraries(${ModuleName} PRIVATE
+#    ${TensorFlowRootDirPath}/lib/libtensorflow_cc.so
+#	${TensorFlowRootDirPath}/lib/libtensorflow_framework.so
+#)
 	
 list(APPEND v_ListModuleHeaderFilePath ${ModuleHeaders})
 list(APPEND v_ListAccessorSettingHeaderFilePath ${ModuleSourcePath}/AccessorSetting.h)
 set(v_EnabledLoadTimeModuleRegistrar TRUE)
 include(${c_RootThirdPartyDirPath}/Niflect/Shared.cmake)
 include(${c_RootThirdPartyDirPath}/NiflectGenTool/Exe.cmake)
+include(Licensed_TensorFlow.cmake)
 
 include(${c_ProjectDirPath}/Install.cmake)
 
