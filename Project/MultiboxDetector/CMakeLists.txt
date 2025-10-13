@@ -49,13 +49,14 @@ target_include_directories(${ModuleName}
 #    ${TensorFlowRootDirPath}/lib/libtensorflow_cc.so
 #	${TensorFlowRootDirPath}/lib/libtensorflow_framework.so
 #)
+
+include(Licensed_TensorFlow.cmake)
 	
 list(APPEND v_ListModuleHeaderFilePath ${ModuleHeaders})
 list(APPEND v_ListAccessorSettingHeaderFilePath ${ModuleSourcePath}/AccessorSetting.h)
 set(v_EnabledLoadTimeModuleRegistrar TRUE)
 include(${c_RootThirdPartyDirPath}/Niflect/Shared.cmake)
 include(${c_RootThirdPartyDirPath}/NiflectGenTool/Exe.cmake)
-include(Licensed_TensorFlow.cmake)
 
 include(${c_ProjectDirPath}/Install.cmake)
 

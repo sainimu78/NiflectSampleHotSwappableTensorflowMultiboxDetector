@@ -391,7 +391,7 @@ std::vector<char> SerializeTensorToBinary(const Tensor& tensor) {
 }
 
 // 从二进制数据恢复Tensor
-Tensor DeserializeTensorFromBinary(const std::vector<char>& buffer) {
+Tensor DeserializeTensorFromBinary(const std::string& buffer) {
     const char* ptr = buffer.data();
 
     // 读取数据类型
@@ -421,28 +421,28 @@ Tensor DeserializeTensorFromBinary(const std::vector<char>& buffer) {
 
     return tensor;
 }
-// 序列化Tensor到字符串
-std::string SerializeTensorToString(const Tensor& tensor) {
-    TensorProto tensor_proto;
-    // 将Tensor转换为TensorProto
-    tensor.AsProtoTensorContent(&tensor_proto);
-
-    // 序列化为字符串
-    std::string serialized_str;
-    tensor_proto.SerializeToString(&serialized_str);
-    return serialized_str;
-}
-
-// 从字符串反序列化Tensor
-Tensor DeserializeTensorFromString(const std::string& serialized_str) {
-    TensorProto tensor_proto;
-    tensor_proto.ParseFromString(serialized_str);
-
-    Tensor tensor;
-    // 从TensorProto恢复Tensor
-    CHECK(tensor.FromProto(tensor_proto));
-    return tensor;
-}
+//// 序列化Tensor到字符串
+//std::string SerializeTensorToString(const Tensor& tensor) {
+//    TensorProto tensor_proto;
+//    // 将Tensor转换为TensorProto
+//    tensor.AsProtoTensorContent(&tensor_proto);
+//
+//    // 序列化为字符串
+//    std::string serialized_str;
+//    tensor_proto.SerializeToString(&serialized_str);
+//    return serialized_str;
+//}
+//
+//// 从字符串反序列化Tensor
+//Tensor DeserializeTensorFromString(const std::string& serialized_str) {
+//    TensorProto tensor_proto;
+//    tensor_proto.ParseFromString(serialized_str);
+//
+//    Tensor tensor;
+//    // 从TensorProto恢复Tensor
+//    CHECK(tensor.FromProto(tensor_proto));
+//    return tensor;
+//}
 // 保存Tensor到二进制文件
 void SaveTensorToFile(const Tensor& tensor, const std::string& filename) {
     auto binary_data = SerializeTensorToBinary(tensor);
@@ -458,12 +458,14 @@ Tensor LoadTensorFromFile(const std::string& filename) {
     std::streamsize size = file.tellg();
     file.seekg(0, std::ios::beg);
 
-    std::vector<char> buffer(size);
+    std::string buffer;
+    buffer.resize(size);
     file.read(buffer.data(), size);
     file.close();
 
     return DeserializeTensorFromBinary(buffer);
 }
+
 std::string TensorToReadableString(const Tensor& tensor) {
     std::ostringstream ss;
 
@@ -548,10 +550,17 @@ using namespace RwTree;
 static void InitForTest(CHelloWorld& instance)
 {
     instance.m_value = 1.23f;
+    auto& tensor = instance.m_tensor;
+    Tensor::BuildTensor(DT_FLOAT, TensorShape({ 2, 3 }), &tensor);
+    auto tensor_data = tensor.flat<float>();
+    for (int i = 0; i < tensor_data.size(); ++i) {
+        tensor_data(i) = static_cast<float>(i);
+    }
 }
 static bool operator==(const CHelloWorld& lhs, const CHelloWorld& rhs)
 {
     return lhs.m_value == rhs.m_value
+        && TensorToReadableString(lhs.m_tensor) == TensorToReadableString(rhs.m_tensor)
         ;
 }
 
@@ -578,7 +587,14 @@ int main(int argc, char* argv[]) {
         Niflect::CStringStream ss;
         CJsonFormat::Write(&rw, ss);
         printf("%s\n", ss.str().c_str());
+
+        printf("dst.m_tensor:\n");
+        printf("%s", TensorToReadableString(dst.m_tensor).c_str());
+
+        return 0;
     }
+
+
     // 创建一个示例Tensor
     Tensor tensor(DT_FLOAT, TensorShape({ 2, 3 }));
     auto tensor_data = tensor.flat<float>();
