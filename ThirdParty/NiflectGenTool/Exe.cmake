@@ -10,6 +10,7 @@ elseif(LINUX)
 else()
 	message(FATAL_ERROR "Platform not supported")
 endif()
-set(v_NiflectGenToolBinDirPath ${v_UnzippedDirPath}/build/${c_HostPlatform}/${c_HostArch}/Release/${c_BinDirName})
+set(v_LibPlatformArchDirPath ${v_UnzippedDirPath}/build/${c_HostPlatform}/${c_HostArch})
+set(v_NiflectGenToolBinDirPath ${v_LibPlatformArchDirPath}/Release/${c_BinDirName})
 
 include(${c_RootCMakeProjectFrameworkDirPath}/IntegrateNiflectGenTool.cmake)

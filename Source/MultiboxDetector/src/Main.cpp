@@ -539,8 +539,46 @@ std::string TensorDataToString(const Tensor& tensor) {
         printf("%s\n", (char*)a);\
     }
 
+#include "Example.h"
+#include "Niflect/Component/RwTree/Serialization/JsonFormat.h"
+#include "MultiboxDetector_private.h"
+
+using namespace RwTree;
+
+static void InitForTest(CHelloWorld& instance)
+{
+    instance.m_value = 1.23f;
+}
+static bool operator==(const CHelloWorld& lhs, const CHelloWorld& rhs)
+{
+    return lhs.m_value == rhs.m_value
+        ;
+}
+
 int main(int argc, char* argv[]) {
-    printf("asdfkjalsdkjf\n");
+    {
+        //Initialize types registry
+        Niflect::CNiflectModuleRegistry reg;
+        reg.InitLoadTimeModules();
+
+        Niflect::CNiflectType* type = Niflect::StaticGetType<CHelloWorld>();
+        printf("Registered type: %s\n", type->GetTypeName().c_str());
+
+        //Save src to rw
+        CHelloWorld src;
+        InitForTest(src);
+        CRwNode rw;
+        SaveInstanceToRwNode(type, &src, &rw);
+        //Load dst from rw
+        CHelloWorld dst;
+        LoadInstanceFromRwNode(type, &dst, &rw);
+        NIFLECT_ASSERT(src == dst);
+
+        //Serialize rw in JSON
+        Niflect::CStringStream ss;
+        CJsonFormat::Write(&rw, ss);
+        printf("%s\n", ss.str().c_str());
+    }
     // 创建一个示例Tensor
     Tensor tensor(DT_FLOAT, TensorShape({ 2, 3 }));
     auto tensor_data = tensor.flat<float>();
@@ -583,7 +621,6 @@ int main(int argc, char* argv[]) {
     MYASSERT(orgFlat == data_str);
     printf("Flatten Origin: %s\n", orgFlat.c_str());
     printf("Flatten Copied: %s\n", data_str.c_str());
-
 
   // These are the command-line flags the program can understand.
   // They define where the graph and input data is located, and what kind of
