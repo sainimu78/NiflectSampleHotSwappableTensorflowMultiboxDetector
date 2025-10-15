@@ -6,8 +6,6 @@
 #include "Detector.h"
 #include "MultiboxDetector_private.h"
 
-#include "Runtime.h"
-
 #define KEY_EXIT 'q'
 #define KEY_CLEAR 'c'
 
@@ -55,16 +53,13 @@ static void ClearConsole()
 
 int main()
 {
-	TestRuntime();
-	return 0;
-
 	PrintTips();
 
 	Niflect::CNiflectModuleRegistry reg;
 	reg.InitLoadTimeModules();
 
 	{
-		const char* pszPluginName = "AntiCheat";
+		const char* pszPluginName = "Detector";
 		CHotSwap swapper;
 		swapper.Init(DEFAULT_PLUGIN_DIR_PATH, pszPluginName, "Swappable");
 		bool wasCleared = false;

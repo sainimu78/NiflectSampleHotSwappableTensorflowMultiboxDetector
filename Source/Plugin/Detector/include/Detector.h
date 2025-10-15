@@ -14,7 +14,16 @@ class CReportingContext : public CInvocationContext
 {
 };
 
-#define RUNTIME_VERSION 1
+#ifdef DETECTOR_EXPORTS
+void TestDetector();
+#else
+static void TestDetector()
+{
+	//reserved
+}
+#endif
+
+#define RUNTIME_VERSION 0
 
 #if RUNTIME_VERSION == 0
 NIF_T(CTypeNata().SetSwappable())
@@ -24,6 +33,7 @@ public:
 	NIF_M(CMethodNata().SetHash(&CAntiCheat::Detect))
 	void Detect(CDetectingContext& ctx)
 	{
+		TestDetector();
 		printf("No suspicious\n");
 	}
 	NIF_M(CMethodNata().SetHash(&CAntiCheat::Report))
@@ -40,6 +50,7 @@ public:
 	NIF_M(CMethodNata().SetHash(&CAntiCheat::Detect))
 	void Detect(CDetectingContext& ctx)
 	{
+		TestDetector();
 		printf("Traditional anti-cheat, %d\n", m_detectingCount++);
 	}
 	NIF_M(CMethodNata().SetHash(&CAntiCheat::Report))

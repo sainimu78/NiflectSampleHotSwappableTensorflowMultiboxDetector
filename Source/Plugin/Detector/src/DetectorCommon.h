@@ -1,15 +1,15 @@
 #pragma once
 
 #ifdef WIN32
-	#ifdef ANTICHEAT_EXPORTS
-		#define ANTICHEAT_API __declspec(dllexport)
+	#ifdef DETECTOR_EXPORTS
+		#define DETECTOR_API __declspec(dllexport)
 	#else
-		#define ANTICHEAT_API __declspec(dllimport)
+		#define DETECTOR_API __declspec(dllimport)
 	#endif
 #else
-	#ifdef ANTICHEAT_EXPORTS
-		#define ANTICHEAT_API __attribute__((visibility("default")))
+	#ifdef DETECTOR_EXPORTS
+		#define DETECTOR_API __attribute__((visibility("default")))
 	#else
-		#define ANTICHEAT_API 
+		#define DETECTOR_API 
 	#endif
 #endif

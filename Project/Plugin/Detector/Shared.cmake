@@ -19,6 +19,12 @@ list(APPEND SrcAll ${ModuleHeaders})
 
 add_library(${ModuleName} SHARED ${SrcAll})
 
+# Required by libtensorflow_cc
+set_target_properties(${ModuleName} PROPERTIES
+    CXX_STANDARD 17
+    CXX_STANDARD_REQUIRED ON
+)
+
 target_precompile_headers(${ModuleName} PRIVATE ${ModuleSourcePath}/${ModuleName}Common.h)
 
 target_include_directories(${ModuleName}
@@ -26,10 +32,11 @@ target_include_directories(${ModuleName}
 	PUBLIC ${IncludePathsPublic}
 )
 
-#target_compile_definitions(${ModuleName} PRIVATE -DANTICHEAT_EXPORTS)
-#target_compile_definitions(${ModuleName} PRIVATE -DPLUGIN_C_EXPORTS)
+target_compile_definitions(${ModuleName} PRIVATE -DDETECTOR_EXPORTS)
 
 ngt_target_link_libraries(${ModuleName} PRIVATE Runtime)
+
+include(${c_RootProjectDirPath}/Plugin/${ModuleName}/Licensed_TensorFlow.cmake)
 
 list(APPEND v_ListModuleHeaderFilePath ${ModuleHeaders})
 set(v_EnabledLoadTimeModuleRegistrar TRUE)
