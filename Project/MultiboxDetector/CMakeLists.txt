@@ -11,6 +11,8 @@ include(${c_RootCMakeProjectFrameworkDirPath}/ProjectEnd.cmake)
 
 include(${c_RootCMakeProjectFrameworkDirPath}/InitCMakeTargetOutputDirPaths.cmake)
 
+cpf_include_install(${c_RootProjectDirPath}/Runtime/Shared.cmake)
+
 set(ModuleName ${c_ProjectName})
 
 set(ModuleRootPath ${c_RootSourceDirPath}/${ModuleName})
@@ -51,12 +53,13 @@ target_include_directories(${ModuleName}
 #)
 
 include(Licensed_TensorFlow.cmake)
+
+ngt_target_link_libraries(${ModuleName} PRIVATE Runtime)
 	
 list(APPEND v_ListModuleHeaderFilePath ${ModuleHeaders})
 list(APPEND v_ListAccessorSettingHeaderFilePath ${ModuleSourcePath}/AccessorSetting.h)
 set(v_EnabledLoadTimeModuleRegistrar TRUE)
-include(${c_RootThirdPartyDirPath}/Niflect/Shared.cmake)
-include(${c_RootThirdPartyDirPath}/NiflectGenTool/Exe.cmake)
+include(${c_RootProjectDirPath}/Niflect/Default.cmake)
 
 include(${c_ProjectDirPath}/Install.cmake)
 
