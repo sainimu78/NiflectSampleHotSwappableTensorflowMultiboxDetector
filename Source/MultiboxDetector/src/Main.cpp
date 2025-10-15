@@ -69,677 +69,520 @@ using tensorflow::uint8;
 // Takes a file name, and loads a list of comma-separated box priors from it,
 // one per line, and returns a vector of the values.
 Status ReadLocationsFile(const string& file_name, std::vector<float>* result,
-                         size_t* found_label_count) {
-  std::ifstream file(file_name);
-  if (!file) {
-    return tensorflow::errors::NotFound("Labels file ", file_name,
-                                        " not found.");
-  }
-  result->clear();
-  string line;
-  while (std::getline(file, line)) {
-    std::vector<string> string_tokens = tensorflow::str_util::Split(line, ',');
-    result->reserve(string_tokens.size());
-    for (const string& string_token : string_tokens) {
-      float number;
-      CHECK(absl::SimpleAtof(string_token, &number));
-      result->push_back(number);
+    size_t* found_label_count) {
+    std::ifstream file(file_name);
+    if (!file) {
+        return tensorflow::errors::NotFound("Labels file ", file_name,
+            " not found.");
     }
-  }
-  *found_label_count = result->size();
-  return absl::OkStatus();
+    result->clear();
+    string line;
+    while (std::getline(file, line)) {
+        std::vector<string> string_tokens = tensorflow::str_util::Split(line, ',');
+        result->reserve(string_tokens.size());
+        for (const string& string_token : string_tokens) {
+            float number;
+            CHECK(absl::SimpleAtof(string_token, &number));
+            result->push_back(number);
+        }
+    }
+    *found_label_count = result->size();
+    return absl::OkStatus();
 }
 
 // Given an image file name, read in the data, try to decode it as an image,
 // resize it to the requested size, and then scale the values as desired.
 Status ReadTensorFromImageFile(const string& file_name, const int input_height,
-                               const int input_width, const float input_mean,
-                               const float input_std,
-                               std::vector<Tensor>* out_tensors) {
-  auto root = tensorflow::Scope::NewRootScope();
-  using namespace ::tensorflow::ops;  // NOLINT(build/namespaces)
+    const int input_width, const float input_mean,
+    const float input_std,
+    std::vector<Tensor>* out_tensors) {
+    auto root = tensorflow::Scope::NewRootScope();
+    using namespace ::tensorflow::ops;  // NOLINT(build/namespaces)
 
-  string input_name = "file_reader";
-  string original_name = "identity";
-  string output_name = "normalized";
-  auto file_reader =
-      tensorflow::ops::ReadFile(root.WithOpName(input_name), file_name);
-  // Now try to figure out what kind of file it is and decode it.
-  const int wanted_channels = 3;
-  tensorflow::Output image_reader;
-  if (absl::EndsWith(file_name, ".png")) {
-    image_reader = DecodePng(root.WithOpName("png_reader"), file_reader,
-                             DecodePng::Channels(wanted_channels));
-  } else if (absl::EndsWith(file_name, ".gif")) {
-    image_reader = DecodeGif(root.WithOpName("gif_reader"), file_reader);
-  } else {
-    // Assume if it's neither a PNG nor a GIF then it must be a JPEG.
-    image_reader = DecodeJpeg(root.WithOpName("jpeg_reader"), file_reader,
-                              DecodeJpeg::Channels(wanted_channels));
-  }
+    string input_name = "file_reader";
+    string original_name = "identity";
+    string output_name = "normalized";
+    auto file_reader =
+        tensorflow::ops::ReadFile(root.WithOpName(input_name), file_name);
+    // Now try to figure out what kind of file it is and decode it.
+    const int wanted_channels = 3;
+    tensorflow::Output image_reader;
+    if (absl::EndsWith(file_name, ".png")) {
+        image_reader = DecodePng(root.WithOpName("png_reader"), file_reader,
+            DecodePng::Channels(wanted_channels));
+    }
+    else if (absl::EndsWith(file_name, ".gif")) {
+        image_reader = DecodeGif(root.WithOpName("gif_reader"), file_reader);
+    }
+    else {
+        // Assume if it's neither a PNG nor a GIF then it must be a JPEG.
+        image_reader = DecodeJpeg(root.WithOpName("jpeg_reader"), file_reader,
+            DecodeJpeg::Channels(wanted_channels));
+    }
 
-  // Also return identity so that we can know the original dimensions and
-  // optionally save the image out with bounding boxes overlaid.
-  auto original_image = Identity(root.WithOpName(original_name), image_reader);
+    // Also return identity so that we can know the original dimensions and
+    // optionally save the image out with bounding boxes overlaid.
+    auto original_image = Identity(root.WithOpName(original_name), image_reader);
 
-  // Now cast the image data to float so we can do normal math on it.
-  auto float_caster = Cast(root.WithOpName("float_caster"), original_image,
-                           tensorflow::DT_FLOAT);
-  // The convention for image ops in TensorFlow is that all images are expected
-  // to be in batches, so that they're four-dimensional arrays with indices of
-  // [batch, height, width, channel]. Because we only have a single image, we
-  // have to add a batch dimension of 1 to the start with ExpandDims().
-  auto dims_expander = ExpandDims(root, float_caster, 0);
+    // Now cast the image data to float so we can do normal math on it.
+    auto float_caster = Cast(root.WithOpName("float_caster"), original_image,
+        tensorflow::DT_FLOAT);
+    // The convention for image ops in TensorFlow is that all images are expected
+    // to be in batches, so that they're four-dimensional arrays with indices of
+    // [batch, height, width, channel]. Because we only have a single image, we
+    // have to add a batch dimension of 1 to the start with ExpandDims().
+    auto dims_expander = ExpandDims(root, float_caster, 0);
 
-  // Bilinearly resize the image to fit the required dimensions.
-  auto resized = ResizeBilinear(
-      root, dims_expander,
-      Const(root.WithOpName("size"), {input_height, input_width}));
-  // Subtract the mean and divide by the scale.
-  Div give_me_a_name(root.WithOpName(output_name),
-                     Sub(root, resized, {input_mean}), {input_std});
+    // Bilinearly resize the image to fit the required dimensions.
+    auto resized = ResizeBilinear(
+        root, dims_expander,
+        Const(root.WithOpName("size"), { input_height, input_width }));
+    // Subtract the mean and divide by the scale.
+    Div give_me_a_name(root.WithOpName(output_name),
+        Sub(root, resized, { input_mean }), { input_std });
 
-  // This runs the GraphDef network definition that we've just constructed, and
-  // returns the results in the output tensor.
-  tensorflow::GraphDef graph;
-  TF_RETURN_IF_ERROR(root.ToGraphDef(&graph));
+    // This runs the GraphDef network definition that we've just constructed, and
+    // returns the results in the output tensor.
+    tensorflow::GraphDef graph;
+    TF_RETURN_IF_ERROR(root.ToGraphDef(&graph));
 
-  std::unique_ptr<tensorflow::Session> session(
-      tensorflow::NewSession(tensorflow::SessionOptions()));
-  TF_RETURN_IF_ERROR(session->Create(graph));
-  TF_RETURN_IF_ERROR(
-      session->Run({}, {output_name, original_name}, {}, out_tensors));
-  return absl::OkStatus();
+    std::unique_ptr<tensorflow::Session> session(
+        tensorflow::NewSession(tensorflow::SessionOptions()));
+    TF_RETURN_IF_ERROR(session->Create(graph));
+    TF_RETURN_IF_ERROR(
+        session->Run({}, { output_name, original_name }, {}, out_tensors));
+    return absl::OkStatus();
 }
 
 Status SaveImage(const Tensor& tensor, const string& file_path) {
-  LOG(INFO) << "Saving image to " << file_path;
-  CHECK(absl::EndsWith(file_path, ".png"))
-      << "Only saving of png files is supported.";
+    LOG(INFO) << "Saving image to " << file_path;
+    CHECK(absl::EndsWith(file_path, ".png"))
+        << "Only saving of png files is supported.";
 
-  auto root = tensorflow::Scope::NewRootScope();
-  using namespace ::tensorflow::ops;  // NOLINT(build/namespaces)
+    auto root = tensorflow::Scope::NewRootScope();
+    using namespace ::tensorflow::ops;  // NOLINT(build/namespaces)
 
-  string encoder_name = "encode";
-  string output_name = "file_writer";
+    string encoder_name = "encode";
+    string output_name = "file_writer";
 
-  tensorflow::Output image_encoder =
-      EncodePng(root.WithOpName(encoder_name), tensor);
-  tensorflow::ops::WriteFile file_saver = tensorflow::ops::WriteFile(
-      root.WithOpName(output_name), file_path, image_encoder);
+    tensorflow::Output image_encoder =
+        EncodePng(root.WithOpName(encoder_name), tensor);
+    tensorflow::ops::WriteFile file_saver = tensorflow::ops::WriteFile(
+        root.WithOpName(output_name), file_path, image_encoder);
 
-  tensorflow::GraphDef graph;
-  TF_RETURN_IF_ERROR(root.ToGraphDef(&graph));
+    tensorflow::GraphDef graph;
+    TF_RETURN_IF_ERROR(root.ToGraphDef(&graph));
 
-  std::unique_ptr<tensorflow::Session> session(
-      tensorflow::NewSession(tensorflow::SessionOptions()));
-  TF_RETURN_IF_ERROR(session->Create(graph));
-  std::vector<Tensor> outputs;
-  TF_RETURN_IF_ERROR(session->Run({}, {}, {output_name}, &outputs));
+    std::unique_ptr<tensorflow::Session> session(
+        tensorflow::NewSession(tensorflow::SessionOptions()));
+    TF_RETURN_IF_ERROR(session->Create(graph));
+    std::vector<Tensor> outputs;
+    TF_RETURN_IF_ERROR(session->Run({}, {}, { output_name }, &outputs));
 
-  return absl::OkStatus();
+    return absl::OkStatus();
 }
 
 // Reads a model graph definition from disk, and creates a session object you
 // can use to run it.
 Status LoadGraph(const string& graph_file_name,
-                 std::unique_ptr<tensorflow::Session>* session) {
-  tensorflow::GraphDef graph_def;
-  Status load_graph_status =
-      ReadBinaryProto(tensorflow::Env::Default(), graph_file_name, &graph_def);
-  if (!load_graph_status.ok()) {
-    return tensorflow::errors::NotFound("Failed to load compute graph at '",
-                                        graph_file_name, "'");
-  }
-  session->reset(tensorflow::NewSession(tensorflow::SessionOptions()));
-  Status session_create_status = (*session)->Create(graph_def);
-  if (!session_create_status.ok()) {
-    return session_create_status;
-  }
-  return absl::OkStatus();
+    std::unique_ptr<tensorflow::Session>* session) {
+    tensorflow::GraphDef graph_def;
+    Status load_graph_status =
+        ReadBinaryProto(tensorflow::Env::Default(), graph_file_name, &graph_def);
+    if (!load_graph_status.ok()) {
+        return tensorflow::errors::NotFound("Failed to load compute graph at '",
+            graph_file_name, "'");
+    }
+    session->reset(tensorflow::NewSession(tensorflow::SessionOptions()));
+    Status session_create_status = (*session)->Create(graph_def);
+    if (!session_create_status.ok()) {
+        return session_create_status;
+    }
+    return absl::OkStatus();
 }
 
 // Analyzes the output of the MultiBox graph to retrieve the highest scores and
 // their positions in the tensor, which correspond to individual box detections.
 Status GetTopDetections(const std::vector<Tensor>& outputs, int how_many_labels,
-                        Tensor* indices, Tensor* scores) {
-  auto root = tensorflow::Scope::NewRootScope();
-  using namespace ::tensorflow::ops;  // NOLINT(build/namespaces)
+    Tensor* indices, Tensor* scores) {
+    auto root = tensorflow::Scope::NewRootScope();
+    using namespace ::tensorflow::ops;  // NOLINT(build/namespaces)
 
-  string output_name = "top_k";
-  TopK give_me_a_name(root.WithOpName(output_name), outputs[0],
-                      how_many_labels);
-  // This runs the GraphDef network definition that we've just constructed, and
-  // returns the results in the output tensors.
-  tensorflow::GraphDef graph;
-  TF_RETURN_IF_ERROR(root.ToGraphDef(&graph));
+    string output_name = "top_k";
+    TopK give_me_a_name(root.WithOpName(output_name), outputs[0],
+        how_many_labels);
+    // This runs the GraphDef network definition that we've just constructed, and
+    // returns the results in the output tensors.
+    tensorflow::GraphDef graph;
+    TF_RETURN_IF_ERROR(root.ToGraphDef(&graph));
 
-  std::unique_ptr<tensorflow::Session> session(
-      tensorflow::NewSession(tensorflow::SessionOptions()));
-  TF_RETURN_IF_ERROR(session->Create(graph));
-  // The TopK node returns two outputs, the scores and their original indices,
-  // so we have to append :0 and :1 to specify them both.
-  std::vector<Tensor> out_tensors;
-  TF_RETURN_IF_ERROR(session->Run({}, {output_name + ":0", output_name + ":1"},
-                                  {}, &out_tensors));
-  *scores = out_tensors[0];
-  *indices = out_tensors[1];
-  return absl::OkStatus();
+    std::unique_ptr<tensorflow::Session> session(
+        tensorflow::NewSession(tensorflow::SessionOptions()));
+    TF_RETURN_IF_ERROR(session->Create(graph));
+    // The TopK node returns two outputs, the scores and their original indices,
+    // so we have to append :0 and :1 to specify them both.
+    std::vector<Tensor> out_tensors;
+    TF_RETURN_IF_ERROR(session->Run({}, { output_name + ":0", output_name + ":1" },
+        {}, &out_tensors));
+    *scores = out_tensors[0];
+    *indices = out_tensors[1];
+    return absl::OkStatus();
 }
 
 // Converts an encoded location to an actual box placement with the provided
 // box priors.
 void DecodeLocation(const float* encoded_location, const float* box_priors,
-                    float* decoded_location) {
-  bool non_zero = false;
-  for (int i = 0; i < 4; ++i) {
-    const float curr_encoding = encoded_location[i];
-    non_zero = non_zero || curr_encoding != 0.0f;
+    float* decoded_location) {
+    bool non_zero = false;
+    for (int i = 0; i < 4; ++i) {
+        const float curr_encoding = encoded_location[i];
+        non_zero = non_zero || curr_encoding != 0.0f;
 
-    const float mean = box_priors[i * 2];
-    const float std_dev = box_priors[i * 2 + 1];
+        const float mean = box_priors[i * 2];
+        const float std_dev = box_priors[i * 2 + 1];
 
-    float currentLocation = curr_encoding * std_dev + mean;
+        float currentLocation = curr_encoding * std_dev + mean;
 
-    currentLocation = std::max(currentLocation, 0.0f);
-    currentLocation = std::min(currentLocation, 1.0f);
-    decoded_location[i] = currentLocation;
-  }
+        currentLocation = std::max(currentLocation, 0.0f);
+        currentLocation = std::min(currentLocation, 1.0f);
+        decoded_location[i] = currentLocation;
+    }
 
-  if (!non_zero) {
-    LOG(WARNING) << "No non-zero encodings; check log for inference errors.";
-  }
+    if (!non_zero) {
+        LOG(WARNING) << "No non-zero encodings; check log for inference errors.";
+    }
 }
 
 float DecodeScore(float encoded_score) {
-  return 1 / (1 + std::exp(-encoded_score));
+    return 1 / (1 + std::exp(-encoded_score));
 }
 
 void DrawBox(const int image_width, const int image_height, int left, int top,
-             int right, int bottom, tensorflow::TTypes<uint8>::Flat* image) {
-  tensorflow::TTypes<uint8>::Flat image_ref = *image;
+    int right, int bottom, tensorflow::TTypes<uint8>::Flat* image) {
+    tensorflow::TTypes<uint8>::Flat image_ref = *image;
 
-  top = std::max(0, std::min(image_height - 1, top));
-  bottom = std::max(0, std::min(image_height - 1, bottom));
+    top = std::max(0, std::min(image_height - 1, top));
+    bottom = std::max(0, std::min(image_height - 1, bottom));
 
-  left = std::max(0, std::min(image_width - 1, left));
-  right = std::max(0, std::min(image_width - 1, right));
+    left = std::max(0, std::min(image_width - 1, left));
+    right = std::max(0, std::min(image_width - 1, right));
 
-  for (int i = 0; i < 3; ++i) {
-    uint8 val = i == 2 ? 255 : 0;
-    for (int x = left; x <= right; ++x) {
-      image_ref((top * image_width + x) * 3 + i) = val;
-      image_ref((bottom * image_width + x) * 3 + i) = val;
+    for (int i = 0; i < 3; ++i) {
+        uint8 val = i == 2 ? 255 : 0;
+        for (int x = left; x <= right; ++x) {
+            image_ref((top * image_width + x) * 3 + i) = val;
+            image_ref((bottom * image_width + x) * 3 + i) = val;
+        }
+        for (int y = top; y <= bottom; ++y) {
+            image_ref((y * image_width + left) * 3 + i) = val;
+            image_ref((y * image_width + right) * 3 + i) = val;
+        }
     }
-    for (int y = top; y <= bottom; ++y) {
-      image_ref((y * image_width + left) * 3 + i) = val;
-      image_ref((y * image_width + right) * 3 + i) = val;
-    }
-  }
 }
 
+#define MY_VERSION 1
+
+#if MY_VERSION == 0
 // Given the output of a model run, and the name of a file containing the labels
 // this prints out the top five highest-scoring values.
 Status PrintTopDetections(const std::vector<Tensor>& outputs,
-                          const string& labels_file_name,
-                          const int num_boxes,
-                          const int num_detections,
-                          const string& image_file_name,
-                          Tensor* original_tensor) {
-  std::vector<float> locations;
-  size_t label_count;
-  Status read_labels_status =
-      ReadLocationsFile(labels_file_name, &locations, &label_count);
-  if (!read_labels_status.ok()) {
-    LOG(ERROR) << read_labels_status;
-    return read_labels_status;
-  }
-  CHECK_EQ(label_count, num_boxes * 8);
+    const string& labels_file_name,
+    const int num_boxes,
+    const int num_detections,
+    const string& image_file_name,
+    Tensor* original_tensor) {
+    std::vector<float> locations;
+    size_t label_count;
+    Status read_labels_status =
+        ReadLocationsFile(labels_file_name, &locations, &label_count);
+    if (!read_labels_status.ok()) {
+        LOG(ERROR) << read_labels_status;
+        return read_labels_status;
+    }
+    CHECK_EQ(label_count, num_boxes * 8);
 
-  const int how_many_labels =
-      std::min(num_detections, static_cast<int>(label_count));
-  Tensor indices;
-  Tensor scores;
-  TF_RETURN_IF_ERROR(
-      GetTopDetections(outputs, how_many_labels, &indices, &scores));
+    const int how_many_labels =
+        std::min(num_detections, static_cast<int>(label_count));
+    Tensor indices;
+    Tensor scores;
+    TF_RETURN_IF_ERROR(
+        GetTopDetections(outputs, how_many_labels, &indices, &scores));
 
-  tensorflow::TTypes<float>::Flat scores_flat = scores.flat<float>();
+    tensorflow::TTypes<float>::Flat scores_flat = scores.flat<float>();
 
-  tensorflow::TTypes<int32>::Flat indices_flat = indices.flat<int32>();
+    tensorflow::TTypes<int32>::Flat indices_flat = indices.flat<int32>();
 
-  const Tensor& encoded_locations = outputs[1];
-  auto locations_encoded = encoded_locations.flat<float>();
+    const Tensor& encoded_locations = outputs[1];
+    auto locations_encoded = encoded_locations.flat<float>();
 
-  LOG(INFO) << original_tensor->DebugString();
-  const int image_width = original_tensor->shape().dim_size(1);
-  const int image_height = original_tensor->shape().dim_size(0);
+    LOG(INFO) << original_tensor->DebugString();
+    const int image_width = original_tensor->shape().dim_size(1);
+    const int image_height = original_tensor->shape().dim_size(0);
 
-  tensorflow::TTypes<uint8>::Flat image_flat = original_tensor->flat<uint8>();
+    tensorflow::TTypes<uint8>::Flat image_flat = original_tensor->flat<uint8>();
 
-  LOG(INFO) << "===== Top " << how_many_labels << " Detections ======";
-  for (int pos = 0; pos < how_many_labels; ++pos) {
-    const int label_index = indices_flat(pos);
-    const float score = scores_flat(pos);
+    LOG(INFO) << "===== Top " << how_many_labels << " Detections ======";
+    for (int pos = 0; pos < how_many_labels; ++pos) {
+        const int label_index = indices_flat(pos);
+        const float score = scores_flat(pos);
 
-    float decoded_location[4];
-    DecodeLocation(&locations_encoded(label_index * 4),
-                   &locations[label_index * 8], decoded_location);
+        float decoded_location[4];
+        DecodeLocation(&locations_encoded(label_index * 4),
+            &locations[label_index * 8], decoded_location);
 
-    float left = decoded_location[0] * image_width;
-    float top = decoded_location[1] * image_height;
-    float right = decoded_location[2] * image_width;
-    float bottom = decoded_location[3] * image_height;
+        float left = decoded_location[0] * image_width;
+        float top = decoded_location[1] * image_height;
+        float right = decoded_location[2] * image_width;
+        float bottom = decoded_location[3] * image_height;
 
-    LOG(INFO) << "Detection " << pos << ": "
-              << "L:" << left << " "
-              << "T:" << top << " "
-              << "R:" << right << " "
-              << "B:" << bottom << " "
-              << "(" << label_index << ") score: " << DecodeScore(score);
+        LOG(INFO) << "Detection " << pos << ": "
+            << "L:" << left << " "
+            << "T:" << top << " "
+            << "R:" << right << " "
+            << "B:" << bottom << " "
+            << "(" << label_index << ") score: " << DecodeScore(score);
 
-    DrawBox(image_width, image_height, left, top, right, bottom, &image_flat);
-  }
-
-  if (!image_file_name.empty()) {
-    return SaveImage(*original_tensor, image_file_name);
-  }
-  return absl::OkStatus();
-}
-#include "tensorflow/core/framework/tensor.h"
-#include "tensorflow/core/framework/tensor.pb.h"
-#include "tensorflow/core/platform/types.h"
-
-using namespace tensorflow;
-// 自定义二进制格式保存Tensor
-std::vector<char> SerializeTensorToBinary(const Tensor& tensor) {
-    std::vector<char> buffer;
-
-    // 获取Tensor基本信息
-    DataType dtype = tensor.dtype();
-    TensorShape shape = tensor.shape();
-    int64_t num_elements = tensor.NumElements();
-    size_t data_size = tensor.TotalBytes();
-
-    // 计算总缓冲区大小：数据类型 + 维度数 + 各维度大小 + 数据
-    size_t total_size = sizeof(DataType) + sizeof(int32_t) +
-        shape.dims() * sizeof(int64_t) + data_size;
-
-    buffer.resize(total_size);
-    char* ptr = buffer.data();
-
-    // 写入数据类型
-    std::memcpy(ptr, &dtype, sizeof(DataType));
-    ptr += sizeof(DataType);
-
-    // 写入维度数
-    int32_t num_dims = shape.dims();
-    std::memcpy(ptr, &num_dims, sizeof(int32_t));
-    ptr += sizeof(int32_t);
-
-    // 写入各维度大小
-    for (int i = 0; i < num_dims; ++i) {
-        int64_t dim_size = shape.dim_size(i);
-        std::memcpy(ptr, &dim_size, sizeof(int64_t));
-        ptr += sizeof(int64_t);
+        DrawBox(image_width, image_height, left, top, right, bottom, &image_flat);
     }
 
-    // 写入Tensor数据
-    const char* tensor_data = tensor.tensor_data().data();
-    std::memcpy(ptr, tensor_data, data_size);
-
-    return buffer;
-}
-
-// 从二进制数据恢复Tensor
-Tensor DeserializeTensorFromBinary(const std::string& buffer) {
-    const char* ptr = buffer.data();
-
-    // 读取数据类型
-    DataType dtype;
-    std::memcpy(&dtype, ptr, sizeof(DataType));
-    ptr += sizeof(DataType);
-
-    // 读取维度数
-    int32_t num_dims;
-    std::memcpy(&num_dims, ptr, sizeof(int32_t));
-    ptr += sizeof(int32_t);
-
-    // 读取各维度大小
-    std::vector<int64_t> dim_sizes(num_dims);
-    for (int i = 0; i < num_dims; ++i) {
-        std::memcpy(&dim_sizes[i], ptr, sizeof(int64_t));
-        ptr += sizeof(int64_t);
+    if (!image_file_name.empty()) {
+        return SaveImage(*original_tensor, image_file_name);
     }
-
-    // 创建Tensor
-    TensorShape shape(dim_sizes);
-    Tensor tensor(dtype, shape);
-
-    // 读取数据到Tensor
-    size_t data_size = tensor.TotalBytes();
-    std::memcpy(const_cast<char*>(tensor.tensor_data().data()), ptr, data_size);
-
-    return tensor;
+    return absl::OkStatus();
 }
-//// 序列化Tensor到字符串
-//std::string SerializeTensorToString(const Tensor& tensor) {
-//    TensorProto tensor_proto;
-//    // 将Tensor转换为TensorProto
-//    tensor.AsProtoTensorContent(&tensor_proto);
-//
-//    // 序列化为字符串
-//    std::string serialized_str;
-//    tensor_proto.SerializeToString(&serialized_str);
-//    return serialized_str;
-//}
-//
-//// 从字符串反序列化Tensor
-//Tensor DeserializeTensorFromString(const std::string& serialized_str) {
-//    TensorProto tensor_proto;
-//    tensor_proto.ParseFromString(serialized_str);
-//
-//    Tensor tensor;
-//    // 从TensorProto恢复Tensor
-//    CHECK(tensor.FromProto(tensor_proto));
-//    return tensor;
-//}
-// 保存Tensor到二进制文件
-void SaveTensorToFile(const Tensor& tensor, const std::string& filename) {
-    auto binary_data = SerializeTensorToBinary(tensor);
-
-    std::ofstream file(filename, std::ios::binary);
-    file.write(binary_data.data(), binary_data.size());
-    file.close();
-}
-
-// 从二进制文件加载Tensor
-Tensor LoadTensorFromFile(const std::string& filename) {
-    std::ifstream file(filename, std::ios::binary | std::ios::ate);
-    std::streamsize size = file.tellg();
-    file.seekg(0, std::ios::beg);
-
-    std::string buffer;
-    buffer.resize(size);
-    file.read(buffer.data(), size);
-    file.close();
-
-    return DeserializeTensorFromBinary(buffer);
-}
-
-std::string TensorToReadableString(const Tensor& tensor) {
-    std::ostringstream ss;
-
-    // 写入Tensor基本信息
-    ss << "Tensor shape: [";
-    for (int i = 0; i < tensor.dims(); ++i) {
-        if (i > 0) ss << ", ";
-        ss << tensor.dim_size(i);
+#elif MY_VERSION == 1
+Status ReadLabelsFile(const string& file_name, std::vector<string>* result,
+    size_t* found_label_count) {
+    std::ifstream file(file_name);
+    if (!file) {
+        return tensorflow::errors::NotFound("Labels file ", file_name, " not found.");
     }
-    ss << "]\n";
-
-    ss << "Data:\n";
-
-    // 处理2D Tensor（针对您的测试数据）
-    if (tensor.dims() == 2) {
-        auto matrix = tensor.matrix<float>();
-        const int rows = tensor.dim_size(0);
-        const int cols = tensor.dim_size(1);
-
-        for (int i = 0; i < rows; ++i) {
-            ss << "[";
-            for (int j = 0; j < cols; ++j) {
-                if (j > 0) ss << ", ";
-                ss << std::fixed << std::setprecision(2) << matrix(i, j);
-            }
-            ss << "]\n";
+    result->clear();
+    string line;
+    while (std::getline(file, line)) {
+        // 移除行尾的换行符
+        if (!line.empty() && line[line.length() - 1] == '\n') {
+            line.erase(line.length() - 1);
         }
+        result->push_back(line);
     }
-    // 处理1D Tensor
-    else if (tensor.dims() == 1) {
-        auto vec = tensor.vec<float>();
-        ss << "[";
-        for (int i = 0; i < vec.size(); ++i) {
-            if (i > 0) ss << ", ";
-            ss << std::fixed << std::setprecision(2) << vec(i);
-        }
-        ss << "]\n";
-    }
-    // 处理其他维度
-    else {
-        auto flat = tensor.flat<float>();
-        ss << "[";
-        for (int i = 0; i < flat.size(); ++i) {
-            if (i > 0) ss << ", ";
-            ss << std::fixed << std::setprecision(2) << flat(i);
-        }
-        ss << "]\n";
-    }
-
-    return ss.str();
+    *found_label_count = result->size();
+    return absl::OkStatus();
 }
+Status PrintTopDetections(const std::vector<Tensor>& outputs,
+    const string& labels_file_name,
+    const int num_boxes,
+    const int num_detections,
+    const string& image_file_name,
+    Tensor* original_tensor) {
+    // 对于分类模型，我们需要读取类别标签而不是边界框先验
+    std::vector<string> labels;
+    size_t label_count;
 
-// 更简单的版本，只返回数据内容
-std::string TensorDataToString(const Tensor& tensor) {
-    std::ostringstream ss;
-
-    auto flat = tensor.flat<float>();
-    ss << "[";
-    for (int i = 0; i < flat.size(); ++i) {
-        if (i > 0) ss << ", ";
-        ss << flat(i);
-    }
-    ss << "]";
-
-    return ss.str();
-}
-
-#define MYASSERT(x) \
-    if (!(x))\
-    {\
-        void* a = NULL;\
-        printf("Death assertion triggered\n");\
-        printf("%s\n", (char*)a);\
+    // 修改：创建一个新的函数来读取分类标签
+    Status read_labels_status = ReadLabelsFile(labels_file_name, &labels, &label_count);
+    if (!read_labels_status.ok()) {
+        LOG(ERROR) << read_labels_status;
+        return read_labels_status;
     }
 
-#include "Example.h"
-#include "Niflect/Component/RwTree/Serialization/JsonFormat.h"
-#include "MultiboxDetector_private.h"
+    // InceptionV3 输出是 [1, 1001] 的分类概率
+    const Tensor& classification_output = outputs[0]; // 分类概率
+    auto probs = classification_output.flat<float>();
 
-using namespace RwTree;
+    const int num_classes = probs.size();
 
-static void InitForTest(CHelloWorld& instance)
-{
-    instance.m_value = 1.23f;
-    auto& tensor = instance.m_tensor;
-    Tensor::BuildTensor(DT_FLOAT, TensorShape({ 2, 3 }), &tensor);
-    auto tensor_data = tensor.flat<float>();
-    for (int i = 0; i < tensor_data.size(); ++i) {
-        tensor_data(i) = static_cast<float>(i);
+    // 获取top-k分类结果
+    std::vector<std::pair<float, int>> class_scores;
+    for (int i = 0; i < num_classes; ++i) {
+        class_scores.push_back(std::make_pair(probs(i), i));
     }
-}
-static bool operator==(const CHelloWorld& lhs, const CHelloWorld& rhs)
-{
-    return lhs.m_value == rhs.m_value
-        && TensorToReadableString(lhs.m_tensor) == TensorToReadableString(rhs.m_tensor)
-        ;
-}
 
+    // 按概率排序（降序）
+    std::sort(class_scores.rbegin(), class_scores.rend());
+
+    // 获取原始图像尺寸
+    const int image_width = original_tensor->shape().dim_size(1);
+    const int image_height = original_tensor->shape().dim_size(0);
+    tensorflow::TTypes<uint8>::Flat image_flat = original_tensor->flat<uint8>();
+
+    LOG(INFO) << "===== Top " << num_detections << " Classifications (as Detections) =====";
+
+    // 为每个top分类结果生成虚拟的边界框
+    for (int pos = 0; pos < num_detections && pos < class_scores.size(); ++pos) {
+        float score = class_scores[pos].first;
+        int class_id = class_scores[pos].second;
+
+        // 使用模运算确保标签索引在有效范围内
+        int label_index = class_id % label_count;
+        string label_name = labels[label_index];
+
+        // 生成虚拟边界框 - 基于类别ID生成不同位置
+        // 这样不同的类别会在图像的不同位置显示框
+        float box_width = 0.1f * image_width;
+        float box_height = 0.2f * image_height;
+
+        // 根据类别ID计算框的位置（使用简单的哈希分布）
+        float left = 0.3f * image_width + ((class_id * 137) % 70) * 0.01f * image_width;  // 在0-70%宽度范围内
+        float top = ((class_id * 193) % 30) * 0.01f * image_height;  // 在0-70%高度范围内
+
+        // 确保边界框在图像范围内
+        left = std::max(0.0f, std::min(static_cast<float>(image_width - box_width), left));
+        top = std::max(0.0f, std::min(static_cast<float>(image_height - box_height), top));
+        float right = left + box_width;
+        float bottom = top + box_height;
+
+        LOG(INFO) << "Class " << pos << ": " << label_name
+            << " (ID:" << class_id << "): " << score
+            << " [Box: L:" << static_cast<int>(left)
+            << " T:" << static_cast<int>(top)
+            << " R:" << static_cast<int>(right)
+            << " B:" << static_cast<int>(bottom) << "]";
+
+        // 绘制边界框
+        DrawBox(image_width, image_height,
+            static_cast<int>(left), static_cast<int>(top),
+            static_cast<int>(right), static_cast<int>(bottom),
+            &image_flat);
+    }
+
+    // 保存带边界框的图像（如果指定了输出路径）
+    if (!image_file_name.empty()) {
+        return SaveImage(*original_tensor, image_file_name);
+    }
+
+    return absl::OkStatus();
+}
+#endif
 int main(int argc, char* argv[]) {
-    {
-        //Initialize types registry
-        Niflect::CNiflectModuleRegistry reg;
-        reg.InitLoadTimeModules();
+    // These are the command-line flags the program can understand.
+    // They define where the graph and input data is located, and what kind of
+    // input the model expects. If you train your own model, or use something
+    // other than multibox_model you'll need to update these.
 
-        Niflect::CNiflectType* type = Niflect::StaticGetType<CHelloWorld>();
-        printf("Registered type: %s\n", type->GetTypeName().c_str());
+#if MY_VERSION == 0
+    string image =
+        "tensorflow/examples/multibox_detector/data/surfers.jpg";
+    string graph =
+        "tensorflow/examples/multibox_detector/data/"
+        "multibox_model.pb";
+    string box_priors =
+        "tensorflow/examples/multibox_detector/data/"
+        "multibox_location_priors.txt";
+    int32_t input_width = 224;
+    int32_t input_height = 224;
+    int32_t input_mean = 128;
+    int32_t input_std = 128;
+    int32_t num_detections = 5;
+    int32_t num_boxes = 784;
+    string input_layer = "ResizeBilinear";
+    string output_location_layer = "output_locations/Reshape";
+    string output_score_layer = "output_scores/Reshape";
+#elif MY_VERSION == 1
+  // 修改这些默认参数来适配 InceptionV3 模型
+    string image = "tensorflow/examples/multibox_detector/data/surfers.jpg";
+    string graph = "tensorflow/examples/label_image/data/inception_v3_2016_08_28_frozen.pb";
+    //string box_priors = "tensorflow/examples/multibox_detector/data/multibox_location_priors.txt";
+    string box_priors = "tensorflow/examples/label_image/data/imagenet_slim_labels.txt";
 
-        //Save src to rw
-        CHelloWorld src;
-        InitForTest(src);
-        CRwNode rw;
-        SaveInstanceToRwNode(type, &src, &rw);
-        //Load dst from rw
-        CHelloWorld dst;
-        LoadInstanceFromRwNode(type, &dst, &rw);
-        NIFLECT_ASSERT(src == dst);
+    // InceptionV3 参数
+    int32_t input_width = 299;
+    int32_t input_height = 299;
+    int32_t input_mean = 0;
+    int32_t input_std = 255;
 
-        //Serialize rw in JSON
-        Niflect::CStringStream ss;
-        CJsonFormat::Write(&rw, ss);
-        printf("%s\n", ss.str().c_str());
+    // 输出层调整
+    string input_layer = "input";
+    string output_location_layer = "InceptionV3/Predictions/Reshape_1"; // 复用分类输出作为"位置"
+    string output_score_layer = "InceptionV3/Predictions/Reshape_1";    // 同样的输出用于得分
 
-        printf("dst.m_tensor:\n");
-        printf("%s", TensorToReadableString(dst.m_tensor).c_str());
+    int32_t num_detections = 5;
+    //int32_t num_boxes = 784;
+    int32_t num_boxes = 5;
+#endif
 
-        return 0;
+    string root_dir = "";
+    string image_out = "";
+
+    std::vector<Flag> flag_list = {
+        Flag("image", &image, "image to be processed"),
+        Flag("image_out", &image_out,
+             "location to save output image, if desired"),
+        Flag("graph", &graph, "graph to be executed"),
+        Flag("box_priors", &box_priors, "name of file containing box priors"),
+        Flag("input_width", &input_width, "resize image to this width in pixels"),
+        Flag("input_height", &input_height,
+             "resize image to this height in pixels"),
+        Flag("input_mean", &input_mean, "scale pixel values to this mean"),
+        Flag("input_std", &input_std, "scale pixel values to this std deviation"),
+        Flag("num_detections", &num_detections,
+             "number of top detections to return"),
+        Flag("num_boxes", &num_boxes,
+             "number of boxes defined by the location file"),
+        Flag("input_layer", &input_layer, "name of input layer"),
+        Flag("output_location_layer", &output_location_layer,
+             "name of location output layer"),
+        Flag("output_score_layer", &output_score_layer,
+             "name of score output layer"),
+        Flag("root_dir", &root_dir,
+             "interpret image and graph file names relative to this directory"),
+    };
+
+    string usage = tensorflow::Flags::Usage(argv[0], flag_list);
+    const bool parse_result = tensorflow::Flags::Parse(&argc, argv, flag_list);
+    if (!parse_result) {
+        LOG(ERROR) << usage;
+        return -1;
     }
 
-
-    // 创建一个示例Tensor
-    Tensor tensor(DT_FLOAT, TensorShape({ 2, 3 }));
-    auto tensor_data = tensor.flat<float>();
-    for (int i = 0; i < tensor_data.size(); ++i) {
-        tensor_data(i) = static_cast<float>(i);
+    // We need to call this to set up global state for TensorFlow.
+    tensorflow::port::InitMain(argv[0], &argc, &argv);
+    if (argc > 1) {
+        LOG(ERROR) << "Unknown argument " << argv[1] << "\n" << usage;
+        return -1;
     }
 
-    //std::cout << "Original Tensor:" << std::endl;
-    //std::cout << tensor.DebugString() << std::endl;
+    // First we load and initialize the model.
+    std::unique_ptr<tensorflow::Session> session;
+    string graph_path = tensorflow::io::JoinPath(root_dir, graph);
+    Status load_graph_status = LoadGraph(graph_path, &session);
+    if (!load_graph_status.ok()) {
+        LOG(ERROR) << load_graph_status;
+        return -1;
+    }
 
-    //// 方法1: 使用TensorFlow序列化
-    //std::string serialized = SerializeTensorToString(tensor);
-    //Tensor restored_tensor1 = DeserializeTensorFromString(serialized);
-    //std::cout << "Restored Tensor (Method 1):" << std::endl;
-    //std::cout << restored_tensor1.DebugString() << std::endl;
+    // Get the image from disk as a float array of numbers, resized and normalized
+    // to the specifications the main graph expects.
+    std::vector<Tensor> image_tensors;
+    string image_path = tensorflow::io::JoinPath(root_dir, image);
 
-    //// 方法2: 使用自定义二进制格式
-    //auto binary_data = SerializeTensorToBinary(tensor);
-    //Tensor restored_tensor2 = DeserializeTensorFromBinary(binary_data);
-    //std::cout << "Restored Tensor (Method 2):" << std::endl;
-    //std::cout << restored_tensor2.DebugString() << std::endl;
+    Status read_tensor_status =
+        ReadTensorFromImageFile(image_path, input_height, input_width, input_mean,
+            input_std, &image_tensors);
+    if (!read_tensor_status.ok()) {
+        LOG(ERROR) << read_tensor_status;
+        return -1;
+    }
+    const Tensor& resized_tensor = image_tensors[0];
 
-    //// 保存到文件
-    //SaveTensorToFile(tensor, "tensor.bin");
-    //Tensor file_tensor = LoadTensorFromFile("tensor.bin");
-    //std::cout << "Tensor from file:" << std::endl;
-    //std::cout << file_tensor.DebugString() << std::endl;
+    // Actually run the image through the model.
+    std::vector<Tensor> outputs;
+    Status run_status =
+        session->Run({ {input_layer, resized_tensor} },
+            { output_score_layer, output_location_layer }, {}, &outputs);
+    if (!run_status.ok()) {
+        LOG(ERROR) << "Running model failed: " << run_status;
+        return -1;
+    }
 
-    auto data0 = SerializeTensorToString(tensor);
-    auto tensorCopied = DeserializeTensorFromString(data0);
+    Status print_status = PrintTopDetections(outputs, box_priors, num_boxes,
+        num_detections, image_out,
+        &image_tensors[1]);
 
-    auto readable_str = TensorToReadableString(tensorCopied);
-    auto org = TensorToReadableString(tensor);
-    MYASSERT(org == readable_str);
-    printf("Origin: %s\n", org.c_str());
-    printf("Copied: %s\n", readable_str.c_str());
-    // 或者只获取数据内容
-    auto orgFlat = TensorDataToString(tensor);
-    auto data_str = TensorDataToString(tensorCopied);
-    MYASSERT(orgFlat == data_str);
-    printf("Flatten Origin: %s\n", orgFlat.c_str());
-    printf("Flatten Copied: %s\n", data_str.c_str());
+    if (!print_status.ok()) {
+        LOG(ERROR) << "Running print failed: " << print_status;
+        return -1;
+    }
 
-  // These are the command-line flags the program can understand.
-  // They define where the graph and input data is located, and what kind of
-  // input the model expects. If you train your own model, or use something
-  // other than multibox_model you'll need to update these.
-  //string image =
-  //    "data/surfers.jpg";
-  //string graph =
-  //    "data/"
-  //    "multibox_model.pb";
-  //string box_priors =
-  //    "data/"
-  //    "multibox_location_priors.txt";
-  //int32_t input_width = 224;
-  //int32_t input_height = 224;
-  //int32_t input_mean = 128;
-  //int32_t input_std = 128;
-  //int32_t num_detections = 5;
-  //int32_t num_boxes = 784;
-  //string input_layer = "ResizeBilinear";
-  //string output_location_layer = "output_locations/Reshape";
-  //string output_score_layer = "output_scores/Reshape";
-  //string root_dir = "";
-  //string image_out = "";
-
-  //std::vector<Flag> flag_list = {
-  //    Flag("image", &image, "image to be processed"),
-  //    Flag("image_out", &image_out,
-  //         "location to save output image, if desired"),
-  //    Flag("graph", &graph, "graph to be executed"),
-  //    Flag("box_priors", &box_priors, "name of file containing box priors"),
-  //    Flag("input_width", &input_width, "resize image to this width in pixels"),
-  //    Flag("input_height", &input_height,
-  //         "resize image to this height in pixels"),
-  //    Flag("input_mean", &input_mean, "scale pixel values to this mean"),
-  //    Flag("input_std", &input_std, "scale pixel values to this std deviation"),
-  //    Flag("num_detections", &num_detections,
-  //         "number of top detections to return"),
-  //    Flag("num_boxes", &num_boxes,
-  //         "number of boxes defined by the location file"),
-  //    Flag("input_layer", &input_layer, "name of input layer"),
-  //    Flag("output_location_layer", &output_location_layer,
-  //         "name of location output layer"),
-  //    Flag("output_score_layer", &output_score_layer,
-  //         "name of score output layer"),
-  //    Flag("root_dir", &root_dir,
-  //         "interpret image and graph file names relative to this directory"),
-  //};
-
-  //string usage = tensorflow::Flags::Usage(argv[0], flag_list);
-  //const bool parse_result = tensorflow::Flags::Parse(&argc, argv, flag_list);
-  //if (!parse_result) {
-  //  LOG(ERROR) << usage;
-  //  return -1;
-  //}
-
-  //// We need to call this to set up global state for TensorFlow.
-  //tensorflow::port::InitMain(argv[0], &argc, &argv);
-  //if (argc > 1) {
-  //  LOG(ERROR) << "Unknown argument " << argv[1] << "\n" << usage;
-  //  return -1;
-  //}
-
-  //// First we load and initialize the model.
-  //std::unique_ptr<tensorflow::Session> session;
-  //string graph_path = tensorflow::io::JoinPath(root_dir, graph);
-  //Status load_graph_status = LoadGraph(graph_path, &session);
-  //if (!load_graph_status.ok()) {
-  //  LOG(ERROR) << load_graph_status;
-  //  return -1;
-  //}
-
-  //// Get the image from disk as a float array of numbers, resized and normalized
-  //// to the specifications the main graph expects.
-  //std::vector<Tensor> image_tensors;
-  //string image_path = tensorflow::io::JoinPath(root_dir, image);
-
-  //Status read_tensor_status =
-  //    ReadTensorFromImageFile(image_path, input_height, input_width, input_mean,
-  //                            input_std, &image_tensors);
-  //if (!read_tensor_status.ok()) {
-  //  LOG(ERROR) << read_tensor_status;
-  //  return -1;
-  //}
-  //const Tensor& resized_tensor = image_tensors[0];
-
-  //// Actually run the image through the model.
-  //std::vector<Tensor> outputs;
-  //Status run_status =
-  //    session->Run({{input_layer, resized_tensor}},
-  //                 {output_score_layer, output_location_layer}, {}, &outputs);
-  //if (!run_status.ok()) {
-  //  LOG(ERROR) << "Running model failed: " << run_status;
-  //  return -1;
-  //}
-
-  //Status print_status = PrintTopDetections(outputs, box_priors, num_boxes,
-  //                                         num_detections, image_out,
-  //                                         &image_tensors[1]);
-
-  //if (!print_status.ok()) {
-  //  LOG(ERROR) << "Running print failed: " << print_status;
-  //  return -1;
-  //}
-  return 0;
+    return 0;
 }
