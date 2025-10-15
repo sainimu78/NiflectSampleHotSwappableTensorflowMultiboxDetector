@@ -28,6 +28,14 @@ target_include_directories(${ModuleName}
 
 target_compile_definitions(${ModuleName} PRIVATE -DRUNTIME_EXPORTS)
 
+set_target_properties(${ModuleName} PROPERTIES
+    CXX_STANDARD 17
+    CXX_STANDARD_REQUIRED ON
+    CXX_EXTENSIONS OFF
+)
+
+include(${c_RootProjectDirPath}/${ModuleName}/Licensed_TensorFlow.cmake)
+
 list(APPEND v_ListAccessorSettingHeaderFilePath ${ModuleIncludePath}/AccessorSetting.h)
 #list(APPEND v_ListModuleIncludeDirPath ${IncludePathsPrivate})
 #list(APPEND v_ListModuleIncludeDirPath ${IncludePathsPublic})

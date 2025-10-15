@@ -5,7 +5,6 @@ include(../InitRootPath.cmake)
 set(c_ProjectName MultiboxDetector)
 
 include(${c_RootCMakeProjectFrameworkDirPath}/ProjectBegin.cmake)
-set(CMAKE_CXX_STANDARD 17)
 project(${c_ProjectName})
 include(${c_RootCMakeProjectFrameworkDirPath}/ProjectEnd.cmake)
 
@@ -28,6 +27,13 @@ file(GLOB_RECURSE ModuleSources ${ModuleSourcePath}/*.cpp ${ModuleSourcePath}/*.
 create_source_group(${ModuleSourcePath} ${ModuleSources})
 file(GLOB_RECURSE ModuleHeaders ${ModuleIncludePath}/*.h)
 create_source_group(${ModuleIncludePath} ${ModuleHeaders})
+
+set(DetectorIncludePath ${c_RootSourceDirPath}/Plugin/Detector/include)
+file(GLOB_RECURSE AntiCheatHeaders ${DetectorIncludePath}/*.h)
+create_source_group(${DetectorIncludePath} ${AntiCheatHeaders})
+list(APPEND ModuleHeaders ${AntiCheatHeaders})
+list(APPEND IncludePathsPrivate ${DetectorIncludePath})
+
 set(SrcAll "")
 list(APPEND SrcAll ${ModuleSources})
 list(APPEND SrcAll ${ModuleHeaders})
@@ -39,25 +45,9 @@ target_include_directories(${ModuleName}
 	PUBLIC ${IncludePathsPublic}
 )
 
-#get_filename_component(TensorFlowRootDirPath "${c_RootDirPath}/../../out" ABSOLUTE)
-#target_include_directories(${ModuleName} PRIVATE 
-#    ${TensorFlowRootDirPath}/include
-#    ${TensorFlowRootDirPath}/include/third_party/xla
-#    ${TensorFlowRootDirPath}/include/third_party/xla/third_party/tsl
-#    ${TensorFlowRootDirPath}/include/bazel-tensorflow/external/ml_dtypes_py
-#    ${TensorFlowRootDirPath}/include/external/local_xla
-#)
-#target_link_libraries(${ModuleName} PRIVATE
-#    ${TensorFlowRootDirPath}/lib/libtensorflow_cc.so
-#	${TensorFlowRootDirPath}/lib/libtensorflow_framework.so
-#)
-
-include(Licensed_TensorFlow.cmake)
-
 ngt_target_link_libraries(${ModuleName} PRIVATE Runtime)
-	
+
 list(APPEND v_ListModuleHeaderFilePath ${ModuleHeaders})
-list(APPEND v_ListAccessorSettingHeaderFilePath ${ModuleSourcePath}/AccessorSetting.h)
 set(v_EnabledLoadTimeModuleRegistrar TRUE)
 include(${c_RootProjectDirPath}/Niflect/Default.cmake)
 
@@ -65,12 +55,12 @@ include(${c_ProjectDirPath}/Install.cmake)
 
 if(MSVC)
     set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT ${ModuleName})
-endif()
-
-if(MSVC)
 	set_target_properties(${ModuleName} PROPERTIES
 		VS_DEBUGGER_WORKING_DIRECTORY "$<IF:$<CONFIG:Debug>,${c_ProjectBinDirPathDebug},${c_ProjectBinDirPathRelease}>"
 	)
+else()
+	#target_link_libraries(${ModuleName} PRIVATE pthread)#pthread_create, 使用高版本如 Ubuntu 24 中的标准库可不链接 pthread
+	target_link_libraries(${ModuleName} PRIVATE dl) #dlopen, dlclose, dlerror, dlsym, 使用高版本如 Ubuntu 24 中的标准库可不链接 dl
 endif()
 
 include(${c_RootCMakeProjectFrameworkDirPath}/Release.cmake)

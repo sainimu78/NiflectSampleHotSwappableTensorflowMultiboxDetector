@@ -34,3 +34,8 @@ ngt_target_link_libraries(${ModuleName} PRIVATE Runtime)
 list(APPEND v_ListModuleHeaderFilePath ${ModuleHeaders})
 set(v_EnabledLoadTimeModuleRegistrar TRUE)
 include(${c_RootProjectDirPath}/Niflect/Default.cmake)
+
+if(MSVC)
+    set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT ${ModuleName})
+else()
+endif()

@@ -1,3 +1,3 @@
 #!/bin/bash
-export ProjectDirPath=../../../../../Project/MultiboxDetector
+export ProjectDirPath=../../../../../Project/Plugin
 ../../../ThirdParty/CMakeProjectFramework/PlatformSpecificScript/Linux/Release.sh
