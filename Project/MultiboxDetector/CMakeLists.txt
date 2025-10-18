@@ -28,7 +28,9 @@ create_source_group(${ModuleSourcePath} ${ModuleSources})
 file(GLOB_RECURSE ModuleHeaders ${ModuleIncludePath}/*.h)
 create_source_group(${ModuleIncludePath} ${ModuleHeaders})
 
-set(DetectorIncludePath ${c_RootSourceDirPath}/Plugin/Detector/include)
+set(DetectorRootPath ${c_RootSourceDirPath}/Plugin/Detector)
+set(DetectorIncludePath ${DetectorRootPath}/include)
+set(DetectorSourcePath ${DetectorRootPath}/src)
 file(GLOB_RECURSE AntiCheatHeaders ${DetectorIncludePath}/*.h)
 create_source_group(${DetectorIncludePath} ${AntiCheatHeaders})
 list(APPEND ModuleHeaders ${AntiCheatHeaders})
@@ -40,6 +42,12 @@ list(APPEND SrcAll ${ModuleHeaders})
 
 add_executable(${ModuleName} ${SrcAll})
 
+# Required by libtensorflow_cc
+set_target_properties(${ModuleName} PROPERTIES
+    CXX_STANDARD 17
+    CXX_STANDARD_REQUIRED ON
+)
+
 target_include_directories(${ModuleName}
 	PRIVATE ${IncludePathsPrivate}
 	PUBLIC ${IncludePathsPublic}
@@ -47,7 +55,10 @@ target_include_directories(${ModuleName}
 
 ngt_target_link_libraries(${ModuleName} PRIVATE Runtime)
 
+include(${c_RootProjectDirPath}/${ModuleName}/Licensed_TensorFlow.cmake)
+
 list(APPEND v_ListModuleHeaderFilePath ${ModuleHeaders})
+list(APPEND v_ListAccessorSettingHeaderFilePath ${DetectorSourcePath}/AccessorSetting.h)
 set(v_EnabledLoadTimeModuleRegistrar TRUE)
 include(${c_RootProjectDirPath}/Niflect/Default.cmake)
 

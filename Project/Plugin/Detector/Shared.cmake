@@ -39,6 +39,7 @@ ngt_target_link_libraries(${ModuleName} PRIVATE Runtime)
 include(${c_RootProjectDirPath}/Plugin/${ModuleName}/Licensed_TensorFlow.cmake)
 
 list(APPEND v_ListModuleHeaderFilePath ${ModuleHeaders})
+list(APPEND v_ListAccessorSettingHeaderFilePath ${ModuleSourcePath}/AccessorSetting.h)
 set(v_EnabledLoadTimeModuleRegistrar TRUE)
 include(${c_RootProjectDirPath}/Niflect/Default.cmake)
 

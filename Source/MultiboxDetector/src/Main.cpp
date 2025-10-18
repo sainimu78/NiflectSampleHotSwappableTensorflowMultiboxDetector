@@ -6,7 +6,10 @@
 #include "Detector.h"
 #include "MultiboxDetector_private.h"
 
-#define KEY_EXIT 'q'
+#define KEY_HOTSWAP 'h'
+#define KEY_DETECT 'd'
+#define KEY_REPORT 'r'
+#define KEY_QUIT 'q'
 #define KEY_CLEAR 'c'
 
 template <typename TMethodAddr>
@@ -36,10 +39,18 @@ R"(%u. (For VS users) Must launch without debugger(Ctrl+F5) - Debug mode(F5) loc
 	tipsCount += 2;
 #endif
 	printf(
-R"(%u. Press [Enter] to hot-swap.
+R"(%u. Press [%c] then [Enter] to hot-swap.
+%u. Press [%c] then [Enter] to detect.
+%u. Press [%c] then [Enter] to report.
 %u. Press [%c] then [Enter] to quit.
 %u. Press [%c] then [Enter] to clear screen.
-)", tipsCount + 1, tipsCount + 2, KEY_EXIT, tipsCount + 3, KEY_CLEAR);
+)", 
+		tipsCount + 1, KEY_HOTSWAP,
+		tipsCount + 2, KEY_DETECT,
+		tipsCount + 3, KEY_REPORT,
+		tipsCount + 4, KEY_QUIT, 
+		tipsCount + 5, KEY_CLEAR
+	);
 	printf("------------------------------------------\n");
 }
 static void ClearConsole()
@@ -64,15 +75,40 @@ int main()
 		swapper.Init(DEFAULT_PLUGIN_DIR_PATH, pszPluginName, "Swappable");
 		bool wasCleared = false;
 		bool initialOrDefault = true;
+		uint32 methodIdx_Report = INDEX_NONE;
+		uint32 methodIdx_Detect = INDEX_NONE;
 		while (true)
 		{
 			bool quit = false;
 			int key = 0;
 			if (!initialOrDefault)
 				key = std::cin.get();
+			bool hotSwapping = false;
 			switch (key)
 			{
-			case KEY_EXIT:
+			case KEY_HOTSWAP:
+				printf("Hot-Swapping\n");
+				hotSwapping = true;
+				break;
+			case KEY_DETECT:
+			{
+				CDetectingContext detectingCtx;
+				if (methodIdx_Detect != INDEX_NONE)
+					swapper.InvokeBestPractice(methodIdx_Detect, detectingCtx);
+				else
+					printf("Method Detect not found\n");
+				break;
+			}
+			case KEY_REPORT:
+			{
+				CReportingContext reportingCtx;
+				if (methodIdx_Report != INDEX_NONE)
+					swapper.InvokeBestPractice(methodIdx_Report, reportingCtx);
+				else
+					printf("Method Report not found\n");
+				break;
+			}
+			case KEY_QUIT:
 				quit = true;
 				break;
 			case KEY_CLEAR:
@@ -80,7 +116,6 @@ int main()
 				wasCleared = true;
 				break;
 			default:
-				initialOrDefault = true;
 				break;
 			}
 			if (quit)
@@ -88,38 +123,26 @@ int main()
 			if (initialOrDefault)
 			{
 				if (wasCleared)
-				{
 					wasCleared = false;
+			}
+			if (initialOrDefault || hotSwapping)
+			{
+				if (swapper.Swap())
+				{
+					methodIdx_Report = INDEX_NONE;
+					methodIdx_Detect = INDEX_NONE;
+					Niflect::TArray<SMethodBinding> vecBinding;
+					auto type = Niflect::StaticGetType<CAntiCheat>();
+					vecBinding.push_back({ FindMethodSignatureHash(type, &CAntiCheat::Detect), &methodIdx_Detect });
+					vecBinding.push_back({ FindMethodSignatureHash(type, &CAntiCheat::Report), &methodIdx_Report });
+					swapper.Bind(vecBinding);
 				}
 				else
 				{
-					if (swapper.Swap())
-					{
-						uint32 methodIdx_Report = INDEX_NONE;
-						uint32 methodIdx_Detect = INDEX_NONE;
-						Niflect::TArray<SMethodBinding> vecBinding;
-						auto type = Niflect::StaticGetType<CAntiCheat>();
-						vecBinding.push_back({ FindMethodSignatureHash(type, &CAntiCheat::Detect), &methodIdx_Detect });
-						vecBinding.push_back({ FindMethodSignatureHash(type, &CAntiCheat::Report), &methodIdx_Report });
-						swapper.Bind(vecBinding);
-						CDetectingContext detectingCtx;
-						if (methodIdx_Detect != INDEX_NONE)
-							swapper.InvokeBestPractice(methodIdx_Detect, detectingCtx);
-						else
-							printf("Method Detect not found\n");
-						CReportingContext reportingCtx;
-						if (methodIdx_Report != INDEX_NONE)
-							swapper.InvokeBestPractice(methodIdx_Report, reportingCtx);
-						else
-							printf("Method Report not found\n");
-					}
-					else
-					{
-						printf("Fail to load the plugin, please build the %s project then try again\n", pszPluginName);
-					}
+					printf("Fail to load the plugin, please build the %s project then try again\n", pszPluginName);
 				}
-				initialOrDefault = false;
 			}
+			initialOrDefault = false;
 		}
 	}
 
