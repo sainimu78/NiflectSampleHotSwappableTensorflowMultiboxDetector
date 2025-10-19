@@ -75,7 +75,8 @@ public:
 	void Detect(CDetectingContext& ctx)
 	{
 		TestDetect(m_outputs, m_image_tensors_1, m_perfStats);
-		printf("Detected %d times with Version 1\n", m_detectedCount++);
+		m_detectedCount++;
+		printf("Detected %d time%s with Version 1\n", m_detectedCount, m_detectedCount > 1 ? "s" : "");
 	}
 	NIF_M(CMethodNata().SetHash(&CDetector::Report))
 	void Report(CReportingContext& ctx)

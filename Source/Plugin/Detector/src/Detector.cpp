@@ -547,6 +547,7 @@ static void ComputePerformanceStats(const std::vector<Tensor>& outputs,
     // 只统计置信度大于0.1的检测
     for (int i = 0; i < scores_flat.size(); ++i) {
         float score = DecodeScore(scores_flat(i));
+        //printf("[%d] %f\n", i, score);
         if (score > 0.1f) {
             valid_detections++;
             total_confidence += score;
