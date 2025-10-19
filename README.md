@@ -6,7 +6,7 @@
 
 本示例旨在演示模拟实际应用中一定会遇到的情况, 即因模型调整必须相应调整 C++ 侧字段.
 
-通过本示例提出的 C++ 字段级热替换方法, 实现不重开应用替换模型并保持历史检测结果, 且执行效率达原生级.
+通过本示例提出的 C++ 字段级热替换方法, 实现不重开应用替换模型并保持历史检测结果, 且执行效率达原生级, 方法特性详见[说明](https://github.com/sainimu78/NiflectSampleHotSwap)
 
 本示例中, 图像检测部分的代码或资源移植自 TensorFlow 官方示例 tensorflow/examples/label_image 与 tensorflow/examples/multibox_detector
 
@@ -17,7 +17,7 @@
 #### 录屏中与版本 0 相关的步骤说明
 
 1. 运行 MultiboxDetector
-2. 输入 h, 加载版本 0 的 `CDetector`
+2. 输入 h, 创建版本 0 的 `CDetector`
 3. 输入 d, 调用 `Detect`, 检测结果保存到 `m_outputs`
 4. 输入 r, 调用 `Report`, 将 `m_outputs` 保存为图片 nihao.png
    - 此时可观察到检测蓝框处于错误的位置
