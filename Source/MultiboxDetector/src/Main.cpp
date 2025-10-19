@@ -62,6 +62,9 @@ static void ClearConsole()
 #endif
 }
 
+void CDetector::Detect(CDetectingContext& ctx) {}
+void CDetector::Report(CReportingContext& ctx) {}
+
 int main()
 {
 	PrintTips();

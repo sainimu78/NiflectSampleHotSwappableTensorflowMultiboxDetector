@@ -490,14 +490,14 @@ static int InvokeInternal(int argc, char* argv[], std::vector<Tensor>& outputs, 
 
     return 0;
 }
-void TestDetect(std::vector<Tensor>& outputs, Tensor& image_tensors_1)
+static void TestDetect(std::vector<Tensor>& outputs, Tensor& image_tensors_1)
 {
     int argc = 1;
     char arg0[] = "";
     char* argv[] = { arg0 };
     InvokeInternal(argc, argv, outputs, image_tensors_1);
 }
-void TestReport(const std::vector<Tensor>& outputs, const Tensor& image_tensors_1)
+static void TestReport(const std::vector<Tensor>& outputs, const Tensor& image_tensors_1)
 {
     string outputImageFilePath = "nihao.png";
     Status print_status = PrintTopDetections(outputs, box_priors, num_boxes,
@@ -507,6 +507,16 @@ void TestReport(const std::vector<Tensor>& outputs, const Tensor& image_tensors_
     if (!print_status.ok()) {
         LOG(ERROR) << "Running print failed: " << print_status;
     }
+}
+void CDetector::Detect(CDetectingContext& ctx)
+{
+    TestDetect(m_outputs, m_image_tensors_1);
+    printf("Detected with Version 0\n");
+}
+void CDetector::Report(CReportingContext& ctx)
+{
+    TestReport(m_outputs, m_image_tensors_1);
+    printf("Reported with Version 0\n");
 }
 #elif RUNTIME_VERSION == 1
 string image =
@@ -722,7 +732,7 @@ static int InvokeInternal(int argc, char* argv[], std::vector<Tensor>& outputs, 
 
     return 0;
 }
-void TestDetect(std::vector<Tensor>& outputs, Tensor& image_tensors_1, ModelPerformanceStats& perfStats)
+static void TestDetect(std::vector<Tensor>& outputs, Tensor& image_tensors_1, ModelPerformanceStats& perfStats)
 {
     int argc = 1;
     char arg0[] = "";
@@ -730,7 +740,7 @@ void TestDetect(std::vector<Tensor>& outputs, Tensor& image_tensors_1, ModelPerf
     InvokeInternal(argc, argv, outputs, image_tensors_1);
     perfStats.total_detections++;
 }
-void TestReport(const std::vector<Tensor>& outputs, const Tensor& image_tensors_1, ModelPerformanceStats& perfStats)
+static void TestReport(const std::vector<Tensor>& outputs, const Tensor& image_tensors_1, ModelPerformanceStats& perfStats)
 {
     string outputImageFilePath = "nihao.png";
     Status print_status = PrintTopDetections(outputs, box_priors, num_boxes,
@@ -757,5 +767,17 @@ void TestReport(const std::vector<Tensor>& outputs, const Tensor& image_tensors_
         perfStats.detection_coverage,
         perfStats.total_detections
     );
+}
+void CDetector::Detect(CDetectingContext& ctx)
+{
+    TestDetect(m_outputs, m_image_tensors_1, m_perfStats);
+    m_detectedCount++;
+    printf("Detected %d time%s with Version 1\n", m_detectedCount, m_detectedCount > 1 ? "s" : "");
+}
+NIF_M(CMethodNata().SetHash(&CDetector::Report))
+void CDetector::Report(CReportingContext& ctx)
+{
+    TestReport(m_outputs, m_image_tensors_1, m_perfStats);
+    printf("Reported with Version 1\n");
 }
 #endif
