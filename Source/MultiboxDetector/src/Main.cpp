@@ -132,9 +132,9 @@ int main()
 					methodIdx_Detect = INDEX_NONE;
 					methodIdx_Report = INDEX_NONE;
 					Niflect::TArray<SMethodBinding> vecBinding;
-					auto type = Niflect::StaticGetType<CAntiCheat>();
-					vecBinding.push_back({ FindMethodSignatureHash(type, &CAntiCheat::Detect), &methodIdx_Detect });
-					vecBinding.push_back({ FindMethodSignatureHash(type, &CAntiCheat::Report), &methodIdx_Report });
+					auto type = Niflect::StaticGetType<CDetector>();
+					vecBinding.push_back({ FindMethodSignatureHash(type, &CDetector::Detect), &methodIdx_Detect });
+					vecBinding.push_back({ FindMethodSignatureHash(type, &CDetector::Report), &methodIdx_Report });
 					swapper.Bind(vecBinding);
 				}
 				else

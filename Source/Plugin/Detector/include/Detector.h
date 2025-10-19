@@ -28,20 +28,20 @@ static void TestDetect(std::vector<Tensor>& outputs, Tensor& image_tensors_1) {}
 static void TestReport(const std::vector<Tensor>& outputs, const Tensor& image_tensors_1) {}
 #endif
 NIF_T(CTypeNata().SetSwappable())
-class CAntiCheat
+class CDetector
 {
 public:
-	NIF_M(CMethodNata().SetHash(&CAntiCheat::Detect))
+	NIF_M(CMethodNata().SetHash(&CDetector::Detect))
 	void Detect(CDetectingContext& ctx)
 	{
 		TestDetect(m_outputs, m_image_tensors_1);
-		printf("No suspicious\n");
+		printf("Detected with Version 0\n");
 	}
-	NIF_M(CMethodNata().SetHash(&CAntiCheat::Report))
+	NIF_M(CMethodNata().SetHash(&CDetector::Report))
 	void Report(CReportingContext& ctx)
 	{
 		TestReport(m_outputs, m_image_tensors_1);
-		printf("Nothing to report\n");
+		printf("Reported with Version 0\n");
 	}
 	NIF_F()
 	std::vector<Tensor> m_outputs;
@@ -68,23 +68,23 @@ static void TestDetect(std::vector<Tensor>& outputs, Tensor& image_tensors_1, Mo
 static void TestReport(const std::vector<Tensor>& outputs, const Tensor& image_tensors_1, ModelPerformanceStats& perfStats) {}
 #endif
 NIF_T(CTypeNata().SetSwappable())
-class CAntiCheat
+class CDetector
 {
 public:
-	NIF_M(CMethodNata().SetHash(&CAntiCheat::Detect))
+	NIF_M(CMethodNata().SetHash(&CDetector::Detect))
 	void Detect(CDetectingContext& ctx)
 	{
 		TestDetect(m_outputs, m_image_tensors_1, m_perfStats);
-		printf("Traditional anti-cheat, %d\n", m_detectingCount++);
+		printf("Detected %d times with Version 1\n", m_detectedCount++);
 	}
-	NIF_M(CMethodNata().SetHash(&CAntiCheat::Report))
+	NIF_M(CMethodNata().SetHash(&CDetector::Report))
 	void Report(CReportingContext& ctx)
 	{
 		TestReport(m_outputs, m_image_tensors_1, m_perfStats);
-		printf("Nothing to report\n");
+		printf("Reported with Version 1\n");
 	}
 	NIF_F()
-	int m_detectingCount = 0;
+	int m_detectedCount = 0;
 	NIF_F()
 	std::vector<Tensor> m_outputs;
 	NIF_F()
