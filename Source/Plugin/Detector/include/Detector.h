@@ -15,8 +15,6 @@ class CReportingContext : public CInvocationContext
 {
 };
 
-using namespace tensorflow;
-
 #define RUNTIME_VERSION 0
 
 #if RUNTIME_VERSION == 0
@@ -29,9 +27,9 @@ public:
 	NIF_M(CMethodNata().SetHash(&CDetector::Report))
 	void Report(CReportingContext& ctx);
 	NIF_F()
-	std::vector<Tensor> m_outputs;
+	std::vector<tensorflow::Tensor> m_outputs;
 	NIF_F()
-	Tensor m_image_tensors_1;
+	tensorflow::Tensor m_image_tensors_1;
 };
 #elif RUNTIME_VERSION == 1
 NIF_T()
@@ -55,10 +53,10 @@ public:
 	NIF_F()
 	int m_detectedCount = 0;
 	NIF_F()
-	std::vector<Tensor> m_outputs;
+	std::vector<tensorflow::Tensor> m_outputs;
 	NIF_F()
 	ModelPerformanceStats m_perfStats;
 	NIF_F()
-	Tensor m_image_tensors_1;
+	tensorflow::Tensor m_image_tensors_1;
 };
 #endif
