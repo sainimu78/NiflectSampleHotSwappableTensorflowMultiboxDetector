@@ -34,16 +34,15 @@ public:
 	Tensor m_image_tensors_1;
 };
 #elif RUNTIME_VERSION == 1
-// AI模型性能统计结构
 NIF_T()
 struct ModelPerformanceStats
 {
-	NIF_F() float inference_time = 0.0f;           // 推理时间(ms)
-	NIF_F() float avg_confidence = 0.0f;           // 平均检测置信度
-	NIF_F() int objects_detected = 0;              // 检测到的对象数量
-	NIF_F() int high_confidence_detections = 0;    // 高置信度检测数量
-	NIF_F() float detection_coverage = 0.0f;       // 检测覆盖率(检测框面积/图像面积)
-	NIF_F() int total_detections = 0;              // 总检测次数
+	NIF_F() float inference_time = 0.0f;
+	NIF_F() float avg_confidence = 0.0f;
+	NIF_F() int objects_detected = 0;
+	NIF_F() int high_confidence_detections = 0;
+	NIF_F() float detection_coverage = 0.0f;
+	NIF_F() int total_detections = 0;
 };
 NIF_T(CTypeNata().SetSwappable())
 class CDetector
