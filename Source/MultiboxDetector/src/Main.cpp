@@ -129,8 +129,8 @@ int main()
 			{
 				if (swapper.Swap())
 				{
-					methodIdx_Report = INDEX_NONE;
 					methodIdx_Detect = INDEX_NONE;
+					methodIdx_Report = INDEX_NONE;
 					Niflect::TArray<SMethodBinding> vecBinding;
 					auto type = Niflect::StaticGetType<CAntiCheat>();
 					vecBinding.push_back({ FindMethodSignatureHash(type, &CAntiCheat::Detect), &methodIdx_Detect });
