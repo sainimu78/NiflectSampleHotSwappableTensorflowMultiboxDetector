@@ -44,3 +44,45 @@
 5. 输入 `r`, 调用 `Report`, 将 `m_outputs` 保存为图片 nihao.png
    - 此时可观察到检测蓝框处于正确的位置, 表明模拟的模型替换流程已完成并正确运行
    - 另可观察到模型性能评估打印输出中的指标正常, 表明模拟的性能反馈机制可进一步扩展
+
+## 构建
+
+Ubuntu 22, 64 位
+
+```
+git submodule update --init
+```
+
+### 下载模型
+
+```bash
+cd Build/MultiboxDetector/Linux
+mkdir -p tensorflow/examples/multibox_detector/data
+wget https://storage.googleapis.com/download.tensorflow.org/models/mobile_multibox_v1a.zip -O tensorflow/examples/multibox_detector/data/mobile_multibox_v1a.zip
+unzip tensorflow/examples/multibox_detector/data/mobile_multibox_v1a.zip -d tensorflow/examples/multibox_detector/data/
+curl -L "https://storage.googleapis.com/download.tensorflow.org/models/inception_v3_2016_08_28_frozen.pb.tar.gz" |
+  tar -C tensorflow/examples/label_image/data -xz
+```
+
+### MultiboxDetector
+
+```bash
+cd Build/MultiboxDetector/Linux
+./Generate.sh
+./Build.sh
+```
+
+### Plugin
+
+```bash
+cd Build/Plugin/Linux
+./Generate.sh
+./Build.sh
+```
+
+## 运行
+
+```bash
+cd Build/MultiboxDetector/Linux
+./DefaultBuild/Release/Linux/bin/MultiboxDetector
+```
