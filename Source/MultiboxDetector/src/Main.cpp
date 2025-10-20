@@ -90,7 +90,7 @@ int main()
 			switch (key)
 			{
 			case KEY_HOTSWAP:
-				printf("Hot-Swapped\n");
+				printf("Hot-Swapping\n");
 				hotSwapping = true;
 				break;
 			case KEY_DETECT:
