@@ -12,7 +12,7 @@
 
 如需了解本示例方法的更多信息, 详见[介绍](https://github.com/sainimu78/NiflectSampleHotSwap)
 
-## 演示说明
+## 录屏说明
 
 检测功能基于 TensorFlow 官方示例移植，含两种模型实现, 来源路径为:
 
@@ -23,7 +23,7 @@
 
 使用的模型为 label_image 中的图像分类模型, 用于模拟某种不合预期的检测实现
 
-#### 录屏中与版本 0 相关的步骤说明
+#### 与版本 0 相关的步骤
 
 1. 运行 MultiboxDetector
 2. 输入 `h`, 创建版本 0 的 `CDetector` 实例
@@ -35,7 +35,7 @@
 
 使用的模型为 multibox_detector 中的物体检测模型, 用于模拟一种符合预期的检测实现
 
-#### 录屏中与版本 1 相关的步骤说明
+#### 与版本 1 相关的步骤
 
 1. 将示例的版本宏 `RUNTIME_VERSION` 改为 1, 即模拟将 `CDetector` 修改为版本 1 的实现
 2. 输入 `h`, 热替换版本 1 的 `CDetector` 实例
