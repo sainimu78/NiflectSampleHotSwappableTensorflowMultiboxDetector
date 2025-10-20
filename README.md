@@ -60,8 +60,9 @@ cd Build/MultiboxDetector/Linux
 mkdir -p tensorflow/examples/multibox_detector/data
 wget https://storage.googleapis.com/download.tensorflow.org/models/mobile_multibox_v1a.zip -O tensorflow/examples/multibox_detector/data/mobile_multibox_v1a.zip
 unzip tensorflow/examples/multibox_detector/data/mobile_multibox_v1a.zip -d tensorflow/examples/multibox_detector/data/
-curl -L "https://storage.googleapis.com/download.tensorflow.org/models/inception_v3_2016_08_28_frozen.pb.tar.gz" |
-  tar -C tensorflow/examples/label_image/data -xz
+mkdir -p tensorflow/examples/label_image/data
+curl -L "https://storage.googleapis.com/download.tensorflow.org/models/inception_v3_2016_08_28_frozen.pb.tar.gz" | tar -C tensorflow/examples/label_image/data -xz
+cp -rv ../../../Doc/tensorflow ./
 ```
 
 ### MultiboxDetector
@@ -84,5 +85,5 @@ cd Build/Plugin/Linux
 
 ```bash
 cd Build/MultiboxDetector/Linux
-./DefaultBuild/Release/Linux/bin/MultiboxDetector
+./DefaultBuild/Release/bin/MultiboxDetector
 ```
