@@ -1,5 +1,7 @@
 # Niflect 示例: TensorFlow 模型零停机热替换与字段级状态保持
 
+下为 C++ 字段级热替换工作流演示录屏
+
 ![Field_Level_Hot-Swapping_for_Live_TensorFlow_Model_Replacement](Doc/Field_Level_Hot-Swapping_for_Live_TensorFlow_Model_Replacement.gif)
 
 本示例展示在模拟 AI 部署场景中, 当模型结构调整要求 C++ 侧相应修改字段时, 如何通过字段级热替换实现:
@@ -10,7 +12,7 @@
 
 如需了解本示例方法的更多信息, 详见[介绍](https://github.com/sainimu78/NiflectSampleHotSwap)
 
-## 演示工作流说明
+## 演示说明
 
 检测功能基于 TensorFlow 官方示例移植，含两种模型实现, 来源路径为:
 
