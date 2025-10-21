@@ -14,10 +14,11 @@
 
 ## 录屏说明
 
-检测功能基于 TensorFlow 官方示例移植，含两种模型实现, 来源路径为:
+录屏中画面左上角代码窗口中, 函数 `CDetector::Detect` 的功能是图像物体检测
 
-- `tensorflow/examples/label_image`
-- `tensorflow/examples/multibox_detector` 
+图像物体检测功能基于 TensorFlow 官方示例 [label_image](https://github.com/tensorflow/tensorflow/tree/master/tensorflow/examples/label_image) 与 [multibox_detector](https://github.com/tensorflow/tensorflow/tree/master/tensorflow/examples/multibox_detector) 移植
+
+录屏所示的主要流程是演示将 `CDetector` 的版本 0 代码热替换为版本 1
 
 ### `CDetector` 的版本 0
 
