@@ -1,5 +1,7 @@
 # Niflect 示例: TensorFlow 模型在线替换与字段级状态保持
 
+本示例为字段级热替换方法的补充示例, 重要特性等说明详见[代码仓库](https://github.com/sainimu78/NiflectSampleHotSwap)
+
 下为 C++ 字段级热替换工作流演示录屏
 
 ![Field_Level_Hot-Swapping_for_Live_TensorFlow_Model_Replacement](Doc/Field_Level_Hot-Swapping_for_Live_TensorFlow_Model_Replacement.gif)
@@ -9,8 +11,6 @@
 - **模型在线替换** - 无需重开应用即可切换 AI 模型
 - **字段级状态保持** - 在替换后保持字段中的检测结果或运行时状态
 - **原生性能** - 执行效率与静态编译代码相当
-
-如需了解本示例方法的更多信息, 详见[介绍](https://github.com/sainimu78/NiflectSampleHotSwap)
 
 ## 录屏说明
 
